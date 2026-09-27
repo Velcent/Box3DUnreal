@@ -18,7 +18,9 @@ public class Box3DUnreal : ModuleRules
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
 		PublicDependencyModuleNames.AddRange(new[] { "Core" });
-		PrivateDependencyModuleNames.AddRange(new[] { "CoreUObject", "Engine", "PhysicsCore", "InputCore" });
+		// Landscape: heightfield collision lives on ULandscapeHeightfieldCollisionComponent and is
+		// reachable only through that module's own FillHeightTile/FillMaterialIndexTile.
+		PrivateDependencyModuleNames.AddRange(new[] { "CoreUObject", "Engine", "PhysicsCore", "InputCore", "Landscape" });
 
 		// ThirdParty/ holds the wrapper CMakeLists.txt and the box3d submodule.
 		string ThirdPartyPath = Path.GetFullPath(Path.Combine(ModuleDirectory, "..", "..", "ThirdParty"));
@@ -54,9 +56,12 @@ public class Box3DUnreal : ModuleRules
 			if (!Directory.Exists(SubmoduleIncludePath))
 			{
 				throw new BuildException(
-					"Box3DUnreal: the box3d submodule is not checked out at {0}. Run " +
-					"\"git submodule update --init --recursive\", or point {1} at a pre-built box3d.",
-					Box3DPath, PrebuiltDirEnvVar);
+					"Box3DUnreal: no pre-built box3d for {0} at {1}, and the box3d submodule is not " +
+					"checked out at {2}. Drop a {3} plus include/ into ThirdParty/Prebuilt/{0}/, set {4} " +
+					"to a pre-built box3d, or run \"git submodule update --init --recursive\" to build " +
+					"from source (requires CMake).",
+					Platform, Path.Combine(ThirdPartyPath, "Prebuilt", Platform), Box3DPath,
+					LibFileName, PrebuiltDirEnvVar);
 			}
 
 			IncludePath = SubmoduleIncludePath;
@@ -75,6 +80,9 @@ public class Box3DUnreal : ModuleRules
 			{
 				throw new BuildException("Box3DUnreal: box3d build did not produce the expected library at " + LibPath);
 			}
+
+			MirrorToPrebuilt(ThirdPartyPath, Platform, LibPath, Path.Combine(InstallDir, "include"),
+				SubmoduleIncludePath, Path.Combine(Box3DPath, "LICENSE"));
 		}
 
 		PublicIncludePaths.Add(IncludePath);
@@ -82,6 +90,56 @@ public class Box3DUnreal : ModuleRules
 		PublicDefinitions.Add("BOX3D_DOUBLE_PRECISION=" + (bDoublePrecision ? "1" : "0"));
 
 		PublicAdditionalLibraries.Add(LibPath);
+	}
+
+	private static void MirrorToPrebuilt(string ThirdPartyPath, string Platform, string LibPath,
+		string InstallIncludePath, string SubmoduleIncludePath, string LicensePath)
+	{
+		string PrebuiltRoot = Path.Combine(ThirdPartyPath, "Prebuilt", Platform);
+		if (Directory.Exists(PrebuiltRoot))
+		{
+			return;
+		}
+
+		string SourceIncludePath = Directory.Exists(InstallIncludePath) ? InstallIncludePath : SubmoduleIncludePath;
+		if (!Directory.Exists(SourceIncludePath))
+		{
+			Console.WriteLine("Box3DUnreal: no box3d headers to mirror into {0}; skipping.", PrebuiltRoot);
+			return;
+		}
+
+		try
+		{
+			Directory.CreateDirectory(Path.Combine(PrebuiltRoot, "lib"));
+			File.Copy(LibPath, Path.Combine(PrebuiltRoot, "lib", Path.GetFileName(LibPath)), true);
+			CopyDirectory(SourceIncludePath, Path.Combine(PrebuiltRoot, "include"));
+
+			if (File.Exists(LicensePath))
+			{
+				File.Copy(LicensePath, Path.Combine(PrebuiltRoot, "box3d-LICENSE.txt"), true);
+			}
+
+			Console.WriteLine("Box3DUnreal: mirrored box3d into {0} for redistribution.", PrebuiltRoot);
+		}
+		catch (Exception Ex)
+		{
+			Console.WriteLine("Box3DUnreal: could not mirror box3d into {0}: {1}", PrebuiltRoot, Ex.Message);
+		}
+	}
+
+	private static void CopyDirectory(string SourceDir, string DestDir)
+	{
+		Directory.CreateDirectory(DestDir);
+
+		foreach (string FilePath in Directory.GetFiles(SourceDir))
+		{
+			File.Copy(FilePath, Path.Combine(DestDir, Path.GetFileName(FilePath)), true);
+		}
+
+		foreach (string SubDir in Directory.GetDirectories(SourceDir))
+		{
+			CopyDirectory(SubDir, Path.Combine(DestDir, Path.GetFileName(SubDir)));
+		}
 	}
 
 	private static string GetPlatformFolder(ReadOnlyTargetRules Target)

@@ -100,8 +100,8 @@ namespace
 	{
 		if (IConsoleVariable* Native = IConsoleManager::Get().FindConsoleVariable(TEXT("box3d.NativeDraw")))
 		{
-			// shapes | joints | jointExtras
-			Native->Set(7, ECVF_SetByConsole);
+			// joints | jointExtras | bounds; shapes needs a createDebugShape renderer.
+			Native->Set(14, ECVF_SetByConsole);
 		}
 	}
 

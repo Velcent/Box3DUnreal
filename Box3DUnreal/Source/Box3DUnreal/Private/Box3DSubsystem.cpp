@@ -22,13 +22,21 @@ static TAutoConsoleVariable<int32> CVarBox3DDebugDraw(
 	TEXT("Draw box3d dynamic bodies at their actual simulation transform (1 = on)."),
 	ECVF_Cheat);
 
+static TAutoConsoleVariable<float> CVarBox3DDebugDrawThickness(
+	TEXT("box3d.DebugDrawThickness"),
+	1.0f,
+	TEXT("Line thickness for box3d.DebugDraw. Raise it to pick the wireframe out of a busy scene."),
+	ECVF_Cheat);
+
 static TAutoConsoleVariable<int32> CVarBox3DNativeDraw(
 	TEXT("box3d.NativeDraw"),
 	0,
 	TEXT("box3d's own debug renderer, as a bitmask. 0 = off. Shows what the solver sees.\n")
 	TEXT("  1 shapes  2 joints  4 jointExtras  8 bounds  16 mass  32 sleep\n")
 	TEXT("  64 contacts  128 contactNormals  256 contactForces  512 islands  1024 graphColors\n")
-	TEXT("Try 67 (shapes+joints+contacts). Authority only."),
+	TEXT("Bit 1 (shapes) needs a b3WorldDef::createDebugShape renderer, which this plugin does\n")
+	TEXT("not provide, so it draws nothing: use 8 for shape AABBs or box3d.DebugDraw for poses.\n")
+	TEXT("Try 74 (bounds+joints+contacts). Authority only."),
 	ECVF_Cheat);
 
 static TAutoConsoleVariable<float> CVarBox3DNativeDrawRange(
@@ -335,6 +343,14 @@ void UBox3DSubsystem::RegisterLevelStaticGeometry(ULevel* Level)
 	}
 	if (Tagged.Num() == 0)
 	{
+		const UWorld* OwningWorld = Level->GetWorld();
+		if (BakedStaticBuckets.Num() == 0 && OwningWorld != nullptr && OwningWorld->PersistentLevel == Level)
+		{
+			UE_LOG(LogBox3D, Warning,
+				TEXT("box3d: no actor carries tag '%s' and no baked collision is loaded - this world has ")
+				TEXT("no static geometry, so dynamic bodies will fall through the terrain."),
+				*StaticGeometryTag.ToString());
+		}
 		return;
 	}
 
@@ -724,7 +740,9 @@ void UBox3DSubsystem::DebugDraw()
 
 	if (UWorld* World = GetWorld())
 	{
-		auto DrawBodyAABBs = [World](const TArray<b3BodyId>& Bodies)
+		const float Thickness = FMath::Max(CVarBox3DDebugDrawThickness.GetValueOnGameThread(), 0.0f);
+
+		auto DrawBodyAABBs = [World, Thickness](const TArray<b3BodyId>& Bodies)
 		{
 			for (const b3BodyId Body : Bodies)
 			{
@@ -737,7 +755,8 @@ void UBox3DSubsystem::DebugDraw()
 				FBox UEBox(ForceInit);
 				UEBox += Box3D::FromBox3DVector(Box.lowerBound);
 				UEBox += Box3D::FromBox3DVector(Box.upperBound);
-				DrawDebugBox(World, UEBox.GetCenter(), UEBox.GetExtent(), FColor::Cyan, false, -1.0f, 0, 1.0f);
+				DrawDebugBox(World, UEBox.GetCenter(), UEBox.GetExtent(), FColor::Cyan,
+					false, 0.0f, SDPG_Foreground, Thickness);
 			}
 		};
 

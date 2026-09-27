@@ -351,16 +351,30 @@ box3d.DebugDraw 0
 ```
 
 Box3D also ships its own renderer, which draws what the solver actually sees — contact
-points and normals, joint frames, islands, sleep state, and real static shapes rather than
-their bounds. It takes a bitmask:
+points and normals, joint frames, islands, sleep state, and per-shape bounds. It takes a
+bitmask:
 
 ```console
-box3d.NativeDraw 67
+box3d.NativeDraw 74
 ```
 
 `1` shapes, `2` joints, `4` joint extras, `8` bounds, `16` mass, `32` sleep, `64` contacts,
-`128` contact normals, `256` contact forces, `512` islands, `1024` graph colours. `67` is
-shapes + joints + contacts. Authority only, since a client has no world to walk.
+`128` contact normals, `256` contact forces, `512` islands, `1024` graph colours. `74` is
+bounds + joints + contacts. Authority only, since a client has no world to walk.
+
+Bit `1` (shapes) is inert here. Box3D only draws shapes through `DrawShapeFcn`, and only for
+shapes that a `b3WorldDef::createDebugShape` callback has already turned into renderer-owned
+geometry — a GPU mesh path meant for the Box3D samples. This plugin registers no such
+callback, so no shape ever has a `userShape` and the flag has nothing to draw. Use `8` for
+per-shape AABBs, or `box3d.DebugDraw 1` to draw bodies at their simulation pose.
+
+Range is a half-extent in centimetres around the player view; everything outside it is
+skipped so the query does not walk the whole static tree:
+
+```console
+box3d.NativeDrawRange 5000
+box3d.NativeDrawThickness 1
+```
 
 ## Profiling
 

@@ -37,6 +37,33 @@ namespace Box3D::StaticGeometry
 			return bNegativeScale ^ bInvert;
 		}
 
+		// Move an already-baked shape by an Unreal-space offset. The shape's points are in box3d
+		// space (Y negated, metres), so the offset is converted the same way rather than applied raw.
+		void PlaceShape(FBox3DBakedShape& Shape, const FTransform& ComponentToActor)
+		{
+			auto Move = [&ComponentToActor](const FVector3f& P)
+			{
+				const FVector Unreal(P.X * Box3D::MetersToUnreal,
+					-P.Y * Box3D::MetersToUnreal, P.Z * Box3D::MetersToUnreal);
+				const FVector Moved = ComponentToActor.TransformPosition(Unreal);
+				return FVector3f(
+					static_cast<float>(Moved.X * Box3D::UnrealToMeters),
+					static_cast<float>(-Moved.Y * Box3D::UnrealToMeters),
+					static_cast<float>(Moved.Z * Box3D::UnrealToMeters));
+			};
+
+			for (FVector3f& Point : Shape.Points)
+			{
+				Point = Move(Point);
+			}
+			if (Shape.Kind == EBox3DBakedShapeKind::Sphere
+				|| Shape.Kind == EBox3DBakedShapeKind::Capsule)
+			{
+				Shape.CenterA = Move(Shape.CenterA);
+				Shape.CenterB = Move(Shape.CenterB);
+			}
+		}
+
 		IInterface_CollisionDataProvider* FindTriMeshProvider(UPrimitiveComponent* Prim)
 		{
 			// Landscape collision components implement the provider directly.
@@ -162,7 +189,7 @@ namespace Box3D::StaticGeometry
 
 		bool ExtractComplexTriMesh(
 			IInterface_CollisionDataProvider* Provider, const FVector& Scale, bool bInvertWinding,
-			TArray<FBox3DBakedShape>& OutShapes)
+			const FTransform& ComponentToActor, TArray<FBox3DBakedShape>& OutShapes)
 		{
 			if (Provider == nullptr || !Provider->ContainsPhysicsTriMeshData(true))
 			{
@@ -179,12 +206,18 @@ namespace Box3D::StaticGeometry
 				return false;
 			}
 
+			// The component's own scale is already applied here, so its relative transform is
+			// taken rotation-and-translation only or the scale would be counted twice.
+			const FTransform Placement(ComponentToActor.GetRotation(),
+				ComponentToActor.GetTranslation(), FVector::OneVector);
+
 			FBox3DBakedShape Shape;
 			Shape.Kind = EBox3DBakedShapeKind::Mesh;
 			Shape.Points.Reserve(TriData.Vertices.Num());
 			for (const FVector3f& V : TriData.Vertices)
 			{
-				Shape.Points.Add(LocalToBaked(FVector(V), Scale));
+				const FVector Scaled(V.X * Scale.X, V.Y * Scale.Y, V.Z * Scale.Z);
+				Shape.Points.Add(LocalToBaked(Placement.TransformPosition(Scaled), FVector::OneVector));
 			}
 
 			const bool bReverse = ShouldReverseWinding(Scale, bInvertWinding);
@@ -271,8 +304,7 @@ namespace Box3D::StaticGeometry
 
 	bool ExtractStaticCollision(AActor* Owner, ESource Source, bool bInvertWinding, FBox3DBakedBody& Out)
 	{
-		UPrimitiveComponent* Prim = Owner ? Cast<UPrimitiveComponent>(Owner->GetRootComponent()) : nullptr;
-		if (Prim == nullptr)
+		if (Owner == nullptr)
 		{
 			return false;
 		}
@@ -280,15 +312,67 @@ namespace Box3D::StaticGeometry
 		Out.WorldTransform = Owner->GetActorTransform();
 		Out.ActorKey = Owner->GetPathName();
 
-		const FVector Scale = Prim->GetComponentScale();
+		// Every primitive on the actor, not just the root: a multi-component static actor keeps
+		// its collision on children, and rooting the search at GetRootComponent() finds nothing.
+		//
+		// This does NOT cover a landscape. Landscape collision is a Chaos heightfield, and no
+		// landscape class implements IInterface_CollisionDataProvider or fills AggGeom, so a
+		// landscape reaches the end of this function and the caller falls back to a bounds box.
+		// Extracting it needs a b3CreateHeightField path off ULandscapeHeightfieldCollisionComponent.
+		TArray<UPrimitiveComponent*> Primitives;
+		Owner->GetComponents<UPrimitiveComponent>(Primitives);
+		// Quiet: an actor with no primitives is usually a deliberate one carrying an explicit
+		// primitive Shape (a bare static pad, for instance), and the caller decides whether that
+		// is a problem. It only matters for Shape=Auto, which warns for itself.
+		if (Primitives.IsEmpty())
+		{
+			return false;
+		}
+
+		int32 CollisionEnabledCount = 0;
+		for (const UPrimitiveComponent* Prim : Primitives)
+		{
+			CollisionEnabledCount += (Prim != nullptr && Prim->IsCollisionEnabled()) ? 1 : 0;
+		}
+		if (CollisionEnabledCount == 0)
+		{
+			UE_LOG(LogBox3D, Warning,
+				TEXT("%s: has %d primitive component(s) but collision is disabled on all of them. ")
+				TEXT("Set the component's Collision Enabled to at least 'Query and Physics'."),
+				*GetNameSafe(Owner), Primitives.Num());
+			return false;
+		}
+
+		// A child's shape is baked in the actor's space, so its own offset from the actor has to
+		// come along or every landscape section stacks up at the origin.
+		const FTransform ActorToWorld = Owner->GetActorTransform();
 
 		if (Source == ESource::ComplexCollision || Source == ESource::Auto)
 		{
-			IInterface_CollisionDataProvider* Provider = FindTriMeshProvider(Prim);
-			if (ExtractComplexTriMesh(Provider, Scale, bInvertWinding, Out.Shapes))
+			for (UPrimitiveComponent* Prim : Primitives)
+			{
+				if (Prim == nullptr || !Prim->IsCollisionEnabled())
+				{
+					continue;
+				}
+
+				IInterface_CollisionDataProvider* Provider = FindTriMeshProvider(Prim);
+				if (Provider == nullptr)
+				{
+					continue;
+				}
+
+				const FTransform Relative =
+					Prim->GetComponentTransform().GetRelativeTransform(ActorToWorld);
+				ExtractComplexTriMesh(Provider, Prim->GetComponentScale(), bInvertWinding,
+					Relative, Out.Shapes);
+			}
+
+			if (Out.Shapes.Num() > 0)
 			{
 				return true;
 			}
+
 			if (Source == ESource::ComplexCollision)
 			{
 				UE_LOG(LogBox3D, Warning,
@@ -300,13 +384,42 @@ namespace Box3D::StaticGeometry
 		}
 
 		// Auto fell through, or SimpleCollision requested.
-		if (ExtractSimpleCollision(Prim, Scale, Out.Shapes) > 0)
+		for (UPrimitiveComponent* Prim : Primitives)
+		{
+			if (Prim == nullptr || !Prim->IsCollisionEnabled())
+			{
+				continue;
+			}
+
+			const int32 Before = Out.Shapes.Num();
+			if (ExtractSimpleCollision(Prim, Prim->GetComponentScale(), Out.Shapes) <= 0)
+			{
+				continue;
+			}
+
+			// Placed into the actor's space, the same as the tri-mesh path: without this a box on
+			// a child component is baked at the actor origin instead of where it sits.
+			const FTransform Relative =
+				Prim->GetComponentTransform().GetRelativeTransform(ActorToWorld);
+			if (!Relative.GetRotation().IsIdentity() || !Relative.GetTranslation().IsNearlyZero())
+			{
+				const FTransform Placement(Relative.GetRotation(), Relative.GetTranslation(),
+					FVector::OneVector);
+				for (int32 Index = Before; Index < Out.Shapes.Num(); ++Index)
+				{
+					PlaceShape(Out.Shapes[Index], Placement);
+				}
+			}
+		}
+		if (Out.Shapes.Num() > 0)
 		{
 			return true;
 		}
 
 		UE_LOG(LogBox3D, Warning,
-			TEXT("%s: no cooked collision found for static body (no tri-mesh, no simple primitives)."),
+			TEXT("%s: no cooked collision found for static body (no tri-mesh, no simple primitives). ")
+			TEXT("A landscape always lands here: its collision is a Chaos heightfield, which this ")
+			TEXT("does not read yet. For a mesh, add simple collision or enable complex collision."),
 			*GetNameSafe(Owner));
 		return false;
 	}

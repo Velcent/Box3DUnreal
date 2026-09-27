@@ -76,3 +76,10 @@ DerivedDataCache/*
 Box3DUnreal/Intermediate
 Box3DUnreal/Binaries
 Box3DUnreal/Source/ThirdParty/Intermediate
+Box3DUnreal/ThirdParty/Intermediate/
+
+!Box3DUnreal/ThirdParty/Prebuilt/
+!Box3DUnreal/ThirdParty/Prebuilt/**/*.lib
+!Box3DUnreal/ThirdParty/Prebuilt/**/*.a
+!Box3DUnreal/ThirdParty/Prebuilt/**/*.h
+!Box3DUnreal/ThirdParty/Prebuilt/**/*.txt

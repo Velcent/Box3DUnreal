@@ -569,6 +569,24 @@ void UBox3DBodyComponent::AddShape()
 		{
 			return;
 		}
+
+		// Only Auto promises to measure something, so only Auto can fail to find it. An explicit
+		// Shape is an authored primitive: a static box pad on an actor with no mesh is a normal
+		// setup, and falling through to it is the intended behaviour rather than a problem.
+		//
+		// Auto instead falls back to ResolveAutoBoxBounds, whose own default is a 50uu half-extent
+		// -- so an actor with nothing to read would become an invisible 1m cube in the solver that
+		// bodies collide with and nobody placed. A missing floor is visible immediately; a phantom
+		// cube is not.
+		if (Shape == EBox3DShape::Auto)
+		{
+			UE_LOG(LogBox3D, Warning,
+				TEXT("box3d: '%s' is Static with Shape=Auto but no collision could be extracted, so it "
+					 "has NO shape and nothing will rest on it. Fix the geometry, or set an explicit "
+					 "Shape (Box/Sphere/Capsule) to place a deliberate one."),
+				*GetNameSafe(GetOwner()));
+			return;
+		}
 	}
 
 	const float M = static_cast<float>(Box3D::UnrealToMeters);
@@ -841,13 +859,19 @@ void UBox3DBodyComponent::DrawDebug() const
 	default: break;
 	}
 
+	// Shared with the subsystem's own draw, so one knob thickens the whole wireframe rather than
+	// half of it. Read per body: this is a cheat-gated debug path and the lookup is not what costs.
+	static IConsoleVariable* ThicknessVar =
+		IConsoleManager::Get().FindConsoleVariable(TEXT("box3d.DebugDrawThickness"));
+	const float Thickness = ThicknessVar ? FMath::Max(ThicknessVar->GetFloat(), 0.0f) : 1.0f;
+
 	switch (Shape)
 	{
 	case EBox3DShape::Sphere:
-		DrawDebugSphere(World, Location, Radius, 16, Color, false, -1.0f, 0, 1.0f);
+		DrawDebugSphere(World, Location, Radius, 16, Color, false, 0.0f, SDPG_Foreground, Thickness);
 		break;
 	case EBox3DShape::Capsule:
-		DrawDebugCapsule(World, Location, HalfHeight + Radius, Radius, Rotation, Color, false, -1.0f, 0, 1.0f);
+		DrawDebugCapsule(World, Location, HalfHeight + Radius, Radius, Rotation, Color, false, 0.0f, SDPG_Foreground, Thickness);
 		break;
 	case EBox3DShape::Convex:
 		if (ConvexDebugSegments.Num() >= 2)
@@ -857,18 +881,18 @@ void UBox3DBodyComponent::DrawDebug() const
 				DrawDebugLine(World,
 					Location + Rotation.RotateVector(ConvexDebugSegments[i]),
 					Location + Rotation.RotateVector(ConvexDebugSegments[i + 1]),
-					Color, false, -1.0f, 0, 1.0f);
+					Color, false, 0.0f, SDPG_Foreground, Thickness);
 			}
 		}
 		else // no convex collision resolved; the shape fell back to a box
 		{
 			DrawDebugBox(World, Location + Rotation.RotateVector(ResolvedBoxCenter),
-				ResolvedHalfExtent, Rotation, Color, false, -1.0f, 0, 1.0f);
+				ResolvedHalfExtent, Rotation, Color, false, 0.0f, SDPG_Foreground, Thickness);
 		}
 		break;
 	default: // Auto / Box
 		DrawDebugBox(World, Location + Rotation.RotateVector(ResolvedBoxCenter),
-			ResolvedHalfExtent, Rotation, Color, false, -1.0f, 0, 1.0f);
+			ResolvedHalfExtent, Rotation, Color, false, 0.0f, SDPG_Foreground, Thickness);
 		break;
 	}
 }
