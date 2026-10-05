@@ -41,12 +41,10 @@ namespace
 		}
 
 		OutSubsystem = GetSubsystem(A);
-		if (OutSubsystem == nullptr || !OutSubsystem->IsWorldValid())
+		if (OutSubsystem == nullptr || !OutSubsystem->SynchronizeSimulation())
 		{
 			return false; // no box3d world: client, or box3d.Enabled off. Not an error.
 		}
-
-		OutSubsystem->FlushAsyncStep();
 
 		OutA = A->GetBodyId();
 		OutB = B->GetBodyId();
@@ -235,17 +233,17 @@ void UBox3DJointLibrary::DestroyJoint(UObject* WorldContext, FBox3DJointHandle J
 bool UBox3DJointLibrary::IsJointValid(UObject* WorldContext, FBox3DJointHandle Joint)
 {
 	UBox3DSubsystem* Subsystem = GetSubsystem(WorldContext);
-	return Subsystem != nullptr && B3_IS_NON_NULL(Subsystem->ResolveJoint(Joint));
+	return Subsystem != nullptr && Subsystem->SynchronizeSimulation()
+		&& B3_IS_NON_NULL(Subsystem->ResolveJoint(Joint));
 }
 
 float UBox3DJointLibrary::GetJointForce(UObject* WorldContext, FBox3DJointHandle Joint)
 {
 	UBox3DSubsystem* Subsystem = GetSubsystem(WorldContext);
-	if (Subsystem == nullptr)
+	if (Subsystem == nullptr || !Subsystem->SynchronizeSimulation())
 	{
 		return 0.0f;
 	}
-	Subsystem->FlushAsyncStep();
 	const b3JointId Id = Subsystem->ResolveJoint(Joint);
 	return B3_IS_NON_NULL(Id) ? b3Length(b3Joint_GetConstraintForce(Id)) : 0.0f;
 }
@@ -253,11 +251,10 @@ float UBox3DJointLibrary::GetJointForce(UObject* WorldContext, FBox3DJointHandle
 float UBox3DJointLibrary::GetJointTorque(UObject* WorldContext, FBox3DJointHandle Joint)
 {
 	UBox3DSubsystem* Subsystem = GetSubsystem(WorldContext);
-	if (Subsystem == nullptr)
+	if (Subsystem == nullptr || !Subsystem->SynchronizeSimulation())
 	{
 		return 0.0f;
 	}
-	Subsystem->FlushAsyncStep();
 	const b3JointId Id = Subsystem->ResolveJoint(Joint);
 	return B3_IS_NON_NULL(Id) ? b3Length(b3Joint_GetConstraintTorque(Id)) : 0.0f;
 }
@@ -265,11 +262,10 @@ float UBox3DJointLibrary::GetJointTorque(UObject* WorldContext, FBox3DJointHandl
 void UBox3DJointLibrary::SetMotorSpeed(UObject* WorldContext, FBox3DJointHandle Joint, float Speed)
 {
 	UBox3DSubsystem* Subsystem = GetSubsystem(WorldContext);
-	if (Subsystem == nullptr)
+	if (Subsystem == nullptr || !Subsystem->SynchronizeSimulation())
 	{
 		return;
 	}
-	Subsystem->FlushAsyncStep();
 	const b3JointId Id = Subsystem->ResolveJoint(Joint);
 	if (B3_IS_NULL(Id))
 	{
@@ -294,11 +290,10 @@ void UBox3DJointLibrary::SetMotorSpeed(UObject* WorldContext, FBox3DJointHandle 
 void UBox3DJointLibrary::SetMotorEnabled(UObject* WorldContext, FBox3DJointHandle Joint, bool bEnabled)
 {
 	UBox3DSubsystem* Subsystem = GetSubsystem(WorldContext);
-	if (Subsystem == nullptr)
+	if (Subsystem == nullptr || !Subsystem->SynchronizeSimulation())
 	{
 		return;
 	}
-	Subsystem->FlushAsyncStep();
 	const b3JointId Id = Subsystem->ResolveJoint(Joint);
 	if (B3_IS_NULL(Id))
 	{

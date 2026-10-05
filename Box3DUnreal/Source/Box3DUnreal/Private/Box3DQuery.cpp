@@ -129,12 +129,10 @@ namespace
 uint32 UBox3DSubsystem::ComputeWorldStateHash(int32& OutBodyCount) const
 {
 	OutBodyCount = 0;
-	if (!bWorldValid)
+	if (!SynchronizeSimulation())
 	{
 		return 0;
 	}
-
-	FlushAsyncStep();
 
 	TArray<TPair<FString, b3BodyId>> Bodies;
 	Bodies.Reserve(DynamicBodies.Num());
@@ -163,12 +161,10 @@ bool UBox3DSubsystem::RaycastClosest(const FVector& Start, const FVector& End, c
 {
 	OutHit = FBox3DHitResult();
 	const FVector Delta = End - Start;
-	if (!bWorldValid || Delta.IsNearlyZero())
+	if (Delta.IsNearlyZero() || !SynchronizeSimulation())
 	{
 		return false;
 	}
-
-	FlushAsyncStep();
 
 	const b3RayResult Result = b3World_CastRayClosest(
 		WorldId, Box3D::ToBox3DPosition(Start), Box3D::ToBox3DVector(Delta), MakeQueryFilter(Filter));
@@ -187,12 +183,10 @@ bool UBox3DSubsystem::RaycastMulti(const FVector& Start, const FVector& End, con
 {
 	OutHits.Reset();
 	const FVector Delta = End - Start;
-	if (!bWorldValid || Delta.IsNearlyZero())
+	if (Delta.IsNearlyZero() || !SynchronizeSimulation())
 	{
 		return false;
 	}
-
-	FlushAsyncStep();
 
 	FCastContext Ctx;
 	Ctx.Length = Delta.Size();
@@ -209,12 +203,10 @@ bool UBox3DSubsystem::OverlapAABB(const FVector& Center, const FVector& HalfExte
 	TArray<AActor*>& OutActors) const
 {
 	OutActors.Reset();
-	if (!bWorldValid)
+	if (!SynchronizeSimulation())
 	{
 		return false;
 	}
-
-	FlushAsyncStep();
 
 	const FVector H = HalfExtent.GetAbs();
 	const b3Vec3 A = Box3D::ToBox3DVector(Center - H);
@@ -232,12 +224,10 @@ bool UBox3DSubsystem::OverlapSphere(const FVector& Center, float Radius, const F
 	TArray<AActor*>& OutActors) const
 {
 	OutActors.Reset();
-	if (!bWorldValid || Radius <= 0.0f)
+	if (Radius <= 0.0f || !SynchronizeSimulation())
 	{
 		return false;
 	}
-
-	FlushAsyncStep();
 
 	b3Vec3 Point;
 	const b3ShapeProxy Proxy = MakeSphereProxy(Point, Radius);
@@ -250,12 +240,10 @@ bool UBox3DSubsystem::OverlapBox(const FVector& Center, const FVector& HalfExten
 	const FBox3DQueryFilter& Filter, TArray<AActor*>& OutActors) const
 {
 	OutActors.Reset();
-	if (!bWorldValid)
+	if (!SynchronizeSimulation())
 	{
 		return false;
 	}
-
-	FlushAsyncStep();
 
 	b3Vec3 Points[8];
 	const b3ShapeProxy Proxy = MakeBoxProxy(Points, HalfExtent, Rotation);
@@ -269,12 +257,10 @@ bool UBox3DSubsystem::SphereCast(const FVector& Start, const FVector& End, float
 {
 	OutHit = FBox3DHitResult();
 	const FVector Delta = End - Start;
-	if (!bWorldValid || Radius <= 0.0f || Delta.IsNearlyZero())
+	if (Radius <= 0.0f || Delta.IsNearlyZero() || !SynchronizeSimulation())
 	{
 		return false;
 	}
-
-	FlushAsyncStep();
 
 	b3Vec3 Point;
 	const b3ShapeProxy Proxy = MakeSphereProxy(Point, Radius);
@@ -293,12 +279,10 @@ bool UBox3DSubsystem::BoxCast(const FVector& Start, const FVector& End, const FV
 {
 	OutHit = FBox3DHitResult();
 	const FVector Delta = End - Start;
-	if (!bWorldValid || Delta.IsNearlyZero())
+	if (Delta.IsNearlyZero() || !SynchronizeSimulation())
 	{
 		return false;
 	}
-
-	FlushAsyncStep();
 
 	b3Vec3 Points[8];
 	const b3ShapeProxy Proxy = MakeBoxProxy(Points, HalfExtent, Rotation);

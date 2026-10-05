@@ -228,7 +228,7 @@ void UBox3DBodyComponent::FenceAsyncStep() const
 {
 	if (Subsystem != nullptr)
 	{
-		Subsystem->FlushAsyncStep();
+		Subsystem->SynchronizeSimulation();
 	}
 }
 

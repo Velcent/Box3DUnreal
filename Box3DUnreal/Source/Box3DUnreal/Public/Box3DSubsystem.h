@@ -180,6 +180,10 @@ public:
 	/** Join the step task. Anything touching the box3d world must call this first. */
 	void FlushAsyncStep() const;
 
+	/** Fence async work and confirm the native world is still available. Use before any
+	 *  direct native access that is not already performed by this subsystem. */
+	bool SynchronizeSimulation() const;
+
 protected:
 	void CreateBox3DWorld();
 	void DestroyBox3DWorld();

@@ -37,6 +37,17 @@ void UBox3DSubsystem::FlushAsyncStep() const
 	}
 }
 
+bool UBox3DSubsystem::SynchronizeSimulation() const
+{
+	if (!bWorldValid)
+	{
+		return false;
+	}
+
+	FlushAsyncStep();
+	return bWorldValid;
+}
+
 void UBox3DSubsystem::GatherKinematicTargets(TArray<FKinematicTarget>& OutTargets)
 {
 	OutTargets.Reset(KinematicBodies.Num());
