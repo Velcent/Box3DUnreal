@@ -98,7 +98,7 @@ only for when you want to control *how* that happens.
 
 ## From source (default)
 
-`Box3DUnreal.Build.cs` runs CMake on the vendored submodule once, caches the library under
+`Box3DLibrary.Build.cs` runs CMake on the vendored submodule once, caches the library under
 `ThirdParty/Intermediate/<Platform>/`, and reuses it on every later build. Delete that folder
 to force a rebuild.
 
