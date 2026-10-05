@@ -139,11 +139,11 @@ uint32 UBox3DSubsystem::ComputeWorldStateHash(int32& OutBodyCount) const
 	for (const TWeakObjectPtr<UBox3DBodyComponent>& Weak : DynamicBodies)
 	{
 		const UBox3DBodyComponent* Comp = Weak.Get();
-		if (Comp == nullptr || B3_IS_NULL(Comp->GetBodyId()))
+		if (Comp == nullptr || B3_IS_NULL(Comp->GetUnsafeNativeBodyId()))
 		{
 			continue;
 		}
-		Bodies.Emplace(GetNameSafe(Comp->GetOwner()), Comp->GetBodyId());
+		Bodies.Emplace(GetNameSafe(Comp->GetOwner()), Comp->GetUnsafeNativeBodyId());
 	}
 	Bodies.Sort([](const TPair<FString, b3BodyId>& A, const TPair<FString, b3BodyId>& B) { return A.Key < B.Key; });
 

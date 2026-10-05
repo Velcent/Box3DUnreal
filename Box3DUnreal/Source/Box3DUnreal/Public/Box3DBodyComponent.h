@@ -53,7 +53,11 @@ public:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	b3BodyId GetBodyId() const { return BodyId; }
+	/** Direct native access. Synchronize the owning subsystem first and do not retain the id. */
+	b3BodyId GetUnsafeNativeBodyId() const { return BodyId; }
+
+	UE_DEPRECATED(5.8, "Use GetUnsafeNativeBodyId; direct access requires synchronized simulation.")
+	b3BodyId GetBodyId() const { return GetUnsafeNativeBodyId(); }
 
 	/** Subsystem hook: build this component's box3d body if it is eligible and none
 	 *  exists yet. Called from BeginPlay and on a runtime box3d.Enabled -> on toggle. */

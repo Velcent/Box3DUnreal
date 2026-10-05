@@ -46,8 +46,8 @@ namespace
 			return false; // no box3d world: client, or box3d.Enabled off. Not an error.
 		}
 
-		OutA = A->GetBodyId();
-		OutB = B->GetBodyId();
+		OutA = A->GetUnsafeNativeBodyId();
+		OutB = B->GetUnsafeNativeBodyId();
 		if (B3_IS_NULL(OutA) || B3_IS_NULL(OutB))
 		{
 			UE_LOG(LogBox3D, Warning,
@@ -131,7 +131,7 @@ FBox3DJointHandle UBox3DJointLibrary::CreateSphericalJoint(UBox3DBodyComponent* 
 	Def.hertz = Spherical.Hertz;
 	Def.dampingRatio = Spherical.DampingRatio;
 
-	return Subsystem->RegisterJoint(b3CreateSphericalJoint(Subsystem->GetWorldId(), &Def),
+	return Subsystem->RegisterJoint(b3CreateSphericalJoint(Subsystem->GetUnsafeNativeWorldId(), &Def),
 		EBox3DJointType::Spherical, Settings);
 }
 
@@ -163,7 +163,7 @@ FBox3DJointHandle UBox3DJointLibrary::CreateRevoluteJoint(UBox3DBodyComponent* B
 	Def.hertz = Revolute.Hertz;
 	Def.dampingRatio = Revolute.DampingRatio;
 
-	return Subsystem->RegisterJoint(b3CreateRevoluteJoint(Subsystem->GetWorldId(), &Def),
+	return Subsystem->RegisterJoint(b3CreateRevoluteJoint(Subsystem->GetUnsafeNativeWorldId(), &Def),
 		EBox3DJointType::Revolute, Settings);
 }
 
@@ -192,7 +192,7 @@ FBox3DJointHandle UBox3DJointLibrary::CreatePrismaticJoint(UBox3DBodyComponent* 
 	Def.motorSpeed = Prismatic.MotorSpeed * ToMeters;
 	Def.maxMotorForce = Prismatic.MaxMotorForce;
 
-	return Subsystem->RegisterJoint(b3CreatePrismaticJoint(Subsystem->GetWorldId(), &Def),
+	return Subsystem->RegisterJoint(b3CreatePrismaticJoint(Subsystem->GetUnsafeNativeWorldId(), &Def),
 		EBox3DJointType::Prismatic, Settings);
 }
 
@@ -218,7 +218,7 @@ FBox3DJointHandle UBox3DJointLibrary::CreateWeldJoint(UBox3DBodyComponent* BodyA
 	Def.linearDampingRatio = Weld.LinearDampingRatio;
 	Def.angularDampingRatio = Weld.AngularDampingRatio;
 
-	return Subsystem->RegisterJoint(b3CreateWeldJoint(Subsystem->GetWorldId(), &Def),
+	return Subsystem->RegisterJoint(b3CreateWeldJoint(Subsystem->GetUnsafeNativeWorldId(), &Def),
 		EBox3DJointType::Weld, Settings);
 }
 

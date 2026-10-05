@@ -65,8 +65,11 @@ public:
 	 *  forced off at launch by -DisableBox3D); toggle at runtime to A/B against no-box3d. */
 	static bool IsBox3DEnabled();
 
-	/** The box3d world id. Only valid while IsWorldValid(). */
-	b3WorldId GetWorldId() const { return WorldId; }
+	/** Direct native access. Call SynchronizeSimulation first and do not retain the id. */
+	b3WorldId GetUnsafeNativeWorldId() const { return WorldId; }
+
+	UE_DEPRECATED(5.8, "Use GetUnsafeNativeWorldId; direct access requires SynchronizeSimulation first.")
+	b3WorldId GetWorldId() const { return GetUnsafeNativeWorldId(); }
 	bool IsWorldValid() const { return bWorldValid; }
 
 	/** True where box3d simulates: Standalone and servers, never a pure client. Gate any

@@ -233,7 +233,7 @@ void UBox3DCharacterComponent::UpdateGroundSpring(float TimeStep)
 	Origin.z -= HalfHeight * ToM;
 
 	const b3Vec3 Translation{ 0.0f, 0.0f, -RayLength };
-	const b3RayResult Hit = b3World_CastRayClosest(Subsystem->GetWorldId(), Origin, Translation, MoverFilter);
+	const b3RayResult Hit = b3World_CastRayClosest(Subsystem->GetUnsafeNativeWorldId(), Origin, Translation, MoverFilter);
 
 	if (!Hit.hit)
 	{
@@ -255,7 +255,7 @@ void UBox3DCharacterComponent::UpdateGroundSpring(float TimeStep)
 
 void UBox3DCharacterComponent::ResolveMotion(const b3Pos& Target)
 {
-	const b3WorldId WorldId = Subsystem->GetWorldId();
+	const b3WorldId WorldId = Subsystem->GetUnsafeNativeWorldId();
 	const b3Capsule Mover = GetMoverCapsule();
 
 	for (int32 Iteration = 0; Iteration < SolverIterations; ++Iteration)

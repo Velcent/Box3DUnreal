@@ -526,7 +526,7 @@ void UBox3DBodyComponent::CreateBody()
 
 	Def.userData = GetOwner();
 
-	BodyId = b3CreateBody(Subsystem->GetWorldId(), &Def);
+	BodyId = b3CreateBody(Subsystem->GetUnsafeNativeWorldId(), &Def);
 	bWasAwake = true; // bodies are created awake
 }
 

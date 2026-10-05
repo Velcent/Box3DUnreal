@@ -140,7 +140,7 @@ int32 UBox3DRagdollComponent::BuildBodies(USkeletalMeshComponent* InMesh, UBox3D
 {
 	const UPhysicsAsset* Asset = InMesh->GetPhysicsAsset();
 	const FTransform ComponentToWorld = InMesh->GetComponentTransform();
-	const b3WorldId WorldId = InSubsystem->GetWorldId();
+	const b3WorldId WorldId = InSubsystem->GetUnsafeNativeWorldId();
 
 	const float UniformScale = static_cast<float>(ComponentToWorld.GetScale3D().GetAbsMax());
 	const float ToMeters = static_cast<float>(Box3D::UnrealToMeters) * UniformScale;
@@ -249,7 +249,7 @@ int32 UBox3DRagdollComponent::BuildJoints(USkeletalMeshComponent* InMesh, UBox3D
 {
 	const UPhysicsAsset* Asset = InMesh->GetPhysicsAsset();
 	const FTransform ComponentToWorld = InMesh->GetComponentTransform();
-	const b3WorldId WorldId = InSubsystem->GetWorldId();
+	const b3WorldId WorldId = InSubsystem->GetUnsafeNativeWorldId();
 
 	Joints.Reserve(Asset->ConstraintSetup.Num());
 

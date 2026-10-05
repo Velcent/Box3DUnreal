@@ -61,7 +61,7 @@ void UBox3DSubsystem::GatherKinematicTargets(TArray<FKinematicTarget>& OutTarget
 			continue;
 		}
 
-		const b3BodyId BodyId = Body->GetBodyId();
+		const b3BodyId BodyId = Body->GetUnsafeNativeBodyId();
 		const AActor* Owner = Body->GetOwner();
 		if (B3_IS_NULL(BodyId) || Owner == nullptr)
 		{
