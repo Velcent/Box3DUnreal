@@ -4,6 +4,9 @@
 #include "Box3DConversion.h"
 #include "Box3DJoints.h"
 #include "Box3DLog.h"
+#if WITH_DEV_AUTOMATION_TESTS
+#include "Misc/AutomationTest.h"
+#endif
 #include <box3d/box3d.h>
 
 namespace
@@ -535,7 +538,7 @@ namespace
 		Check(Tally, bIdentical, TEXT("two identical jointed worlds end bit-exact"));
 	}
 
-	void RunJointTest()
+	bool ExecuteJointTest()
 	{
 		UE_LOG(LogBox3D, Log, TEXT("box3d.JointTest: starting."));
 
@@ -559,6 +562,13 @@ namespace
 			UE_LOG(LogBox3D, Error, TEXT("box3d.JointTest: FAIL - %d passed, %d failed."),
 				Tally.Passed, Tally.Failed);
 		}
+
+		return Tally.Failed == 0;
+	}
+
+	void RunJointTest()
+	{
+		ExecuteJointTest();
 	}
 
 	FAutoConsoleCommand GBox3DJointTest(
@@ -566,4 +576,17 @@ namespace
 		TEXT("Self-checking joint tests: frames, spherical/revolute/prismatic/weld constraints, "
 			 "limits, motors, a chain, and joint determinism. Headless - needs no level content."),
 		FConsoleCommandDelegate::CreateStatic(&RunJointTest));
+
+#if WITH_DEV_AUTOMATION_TESTS
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBox3DJointAutomationTest,
+		"Box3D.Core.Joints",
+		EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+
+	bool FBox3DJointAutomationTest::RunTest(const FString& Parameters)
+	{
+		const bool bPassed = ExecuteJointTest();
+		TestTrue(TEXT("All Box3D joint checks pass"), bPassed);
+		return bPassed;
+	}
+#endif
 } // namespace

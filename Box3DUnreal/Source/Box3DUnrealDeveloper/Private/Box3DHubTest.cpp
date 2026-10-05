@@ -3,6 +3,9 @@
 #include "Box3DConversion.h"
 #include "Box3DJoints.h"
 #include "Box3DLog.h"
+#if WITH_DEV_AUTOMATION_TESTS
+#include "Misc/AutomationTest.h"
+#endif
 #include <box3d/box3d.h>
 
 /**
@@ -387,7 +390,7 @@ namespace Box3DHubTest
 		b3DestroyWorld(World);
 	}
 
-	void RunHubTest()
+	bool ExecuteHubTest()
 	{
 		UE_LOG(LogBox3D, Log, TEXT("box3d.HubTest: starting."));
 
@@ -412,6 +415,13 @@ namespace Box3DHubTest
 			UE_LOG(LogBox3D, Error, TEXT("box3d.HubTest: FAIL - %d passed, %d failed."),
 				Tally.Passed, Tally.Failed);
 		}
+
+		return Tally.Failed == 0;
+	}
+
+	void RunHubTest()
+	{
+		ExecuteHubTest();
 	}
 
 	FAutoConsoleCommand GBox3DHubTest(
@@ -420,5 +430,18 @@ namespace Box3DHubTest
 			 "once, whether cutting one moves its load onto the rest, and at what mass it gives "
 			 "way. Headless - needs no level content."),
 		FConsoleCommandDelegate::CreateStatic(&RunHubTest));
+
+#if WITH_DEV_AUTOMATION_TESTS
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBox3DHubAutomationTest,
+		"Box3D.Core.MultiJointHub",
+		EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+
+	bool FBox3DHubAutomationTest::RunTest(const FString& Parameters)
+	{
+		const bool bPassed = ExecuteHubTest();
+		TestTrue(TEXT("All multi-joint hub checks pass"), bPassed);
+		return bPassed;
+	}
+#endif
 } // namespace Box3DHubTest
 } // namespace

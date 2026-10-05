@@ -6,6 +6,9 @@
 #include "Box3DPrediction.h"
 #include "Box3DSnapshot.h"
 #include "HAL/IConsoleManager.h"
+#if WITH_DEV_AUTOMATION_TESTS
+#include "Misc/AutomationTest.h"
+#endif
 #include <box3d/box3d.h>
 
 namespace
@@ -156,7 +159,7 @@ namespace
 		return bPass;
 	}
 
-	void RunRollbackTest()
+	bool ExecuteRollbackTest()
 	{
 		// Authored in meters; see Box3DDeterminismTest.
 		const Box3D::FScopedLengthUnits Units(1.0f);
@@ -173,10 +176,30 @@ namespace
 			UE_LOG(LogBox3D, Error, TEXT("box3d.RollbackTest: FAIL (event=%s, no-event=%s)."),
 				bEvent ? TEXT("pass") : TEXT("fail"), bNoEvent ? TEXT("pass") : TEXT("fail"));
 		}
+
+		return bEvent && bNoEvent;
+	}
+
+	void RunRollbackTest()
+	{
+		ExecuteRollbackTest();
 	}
 
 	FAutoConsoleCommand GBox3DRollbackTest(
 		TEXT("box3d.RollbackTest"),
 		TEXT("Prove client prediction + rollback: a stale authoritative snapshot corrects a diverged client exactly."),
 		FConsoleCommandDelegate::CreateStatic(&RunRollbackTest));
+
+#if WITH_DEV_AUTOMATION_TESTS
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBox3DRollbackAutomationTest,
+		"Box3D.Core.Rollback",
+		EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+
+	bool FBox3DRollbackAutomationTest::RunTest(const FString& Parameters)
+	{
+		const bool bPassed = ExecuteRollbackTest();
+		TestTrue(TEXT("Rollback corrects divergence and preserves correct prediction"), bPassed);
+		return bPassed;
+	}
+#endif
 } // namespace

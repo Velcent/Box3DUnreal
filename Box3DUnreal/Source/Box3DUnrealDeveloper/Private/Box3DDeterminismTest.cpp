@@ -5,6 +5,9 @@
 #include "Box3DLog.h"
 #include "Box3DSnapshot.h"
 #include "HAL/IConsoleManager.h"
+#if WITH_DEV_AUTOMATION_TESTS
+#include "Misc/AutomationTest.h"
+#endif
 #include <box3d/box3d.h>
 
 namespace
@@ -75,7 +78,7 @@ namespace
 		return b3CreateWorld(&Def);
 	}
 
-	void RunDeterminismTest()
+	bool ExecuteDeterminismTest()
 	{
 		// Authored in meters; the length unit is global state a live world may have set.
 		const Box3D::FScopedLengthUnits Units(1.0f);
@@ -111,6 +114,12 @@ namespace
 
 		b3DestroyWorld(WorldA);
 		b3DestroyWorld(WorldB);
+		return FirstDivergence < 0;
+	}
+
+	void RunDeterminismTest()
+	{
+		ExecuteDeterminismTest();
 	}
 
 	// Largest per-body position difference (metres) between two body sets at their current pose.
@@ -210,4 +219,17 @@ namespace
 		TEXT("box3d.SnapshotTest"),
 		TEXT("Measure snapshot/restore fidelity: how far a restored+resimulated world drifts from the reference."),
 		FConsoleCommandDelegate::CreateStatic(&RunSnapshotTest));
+
+#if WITH_DEV_AUTOMATION_TESTS
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBox3DDeterminismAutomationTest,
+		"Box3D.Core.Determinism",
+		EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+
+	bool FBox3DDeterminismAutomationTest::RunTest(const FString& Parameters)
+	{
+		const bool bPassed = ExecuteDeterminismTest();
+		TestTrue(TEXT("Identical Box3D worlds remain bit-exact"), bPassed);
+		return bPassed;
+	}
+#endif
 } // namespace
