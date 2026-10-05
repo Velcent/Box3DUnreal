@@ -15,7 +15,7 @@
  * The question is not academic. A multi-leg spring tower is a hub — three legs into one crown —
  * and `FTDTowerCourse::FootprintScale` exists precisely because the tower could not express one
  * and had to fake a tripod as a single wide, light body. Whether that fake can be replaced with
- * real legs that share load is decided here. See TowerDefenseCore/Docs/TowerJointGraph.md.
+ * real legs that share load is decided here.
  *
  * Headless and self-checking, like its sibling: raw b3 calls, a world per case, no level content
  * and no actors. That last part is the point. An earlier version of this experiment lived in

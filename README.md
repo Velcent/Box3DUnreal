@@ -407,19 +407,7 @@ Tested with:
 
 ---
 
-# Documentation
-
-Deeper docs live in `Box3DUnreal/Docs/`:
-
-* **[Architecture](Box3DUnreal/Docs/Architecture.md)** — the layers, what owns which Box3D
-  handle, and the coordinate and unit conventions. Worth reading before contributing.
-* **[Joints and Ragdolls](Box3DUnreal/Docs/Joints.md)** — joint types and settings, breaking,
-  and the Physics Asset import with its caveats.
-* **[Integration Build Plan](Box3DUnreal/Docs/Box3DIntegration.md)** — the full design doc:
-  authority contract, precision decisions, the determinism analysis and its measured
-  results, networking, and build setup.
-
-## A note on conventions
+# Implementation conventions
 
 Two things that trip people up when reading the code:
 
