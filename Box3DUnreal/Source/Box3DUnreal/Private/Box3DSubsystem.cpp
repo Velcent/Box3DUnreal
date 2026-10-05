@@ -1,6 +1,7 @@
 // Author: Antonio Lattanzio - emptyvessel
 
 #include "Box3DSubsystem.h"
+#include "Box3DAsyncState.h"
 #include "Box3DBodyComponent.h"
 #include "Box3DCharacterComponent.h"
 #include "Box3DCollisionData.h"
@@ -208,6 +209,8 @@ void UBox3DSubsystem::Deinitialize()
 {
 	FlushAsyncStep();
 	UnregisterStepTickFunctions();
+	delete AsyncState;
+	AsyncState = nullptr;
 
 	// Always registered in OnWorldBeginPlay (authority and client); drop it here.
 	IConsoleManager::Get().UnregisterConsoleVariableSink_Handle(EnabledSinkHandle);
@@ -269,7 +272,10 @@ void UBox3DSubsystem::CreateBox3DWorld()
 void UBox3DSubsystem::DestroyBox3DWorld()
 {
 	FlushAsyncStep();
-	AsyncStepCount = 0;
+	if (AsyncState != nullptr)
+	{
+		AsyncState->StepCount = 0;
+	}
 
 	if (bWorldValid)
 	{

@@ -7,6 +7,7 @@
 #include "Box3DLog.h"
 #include "Box3DStats.h"
 #include "Box3DSubsystem.h"
+#include "Box3DAsyncState.h"
 #include "Engine/Level.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
@@ -28,11 +29,11 @@ bool UBox3DSubsystem::IsAsyncStepEnabled()
 
 void UBox3DSubsystem::FlushAsyncStep() const
 {
-	if (StepTask.IsValid())
+	if (AsyncState != nullptr && AsyncState->StepTask.IsValid())
 	{
 		// Wait runs it here if it never got scheduled, else blocks.
-		StepTask.Wait();
-		StepTask = {};
+		AsyncState->StepTask.Wait();
+		AsyncState->StepTask = {};
 	}
 }
 
@@ -111,47 +112,52 @@ FString FBox3DJoinTickFunction::DiagnosticMessage()
 
 void UBox3DSubsystem::RegisterStepTickFunctions()
 {
+	if (AsyncState == nullptr)
+	{
+		AsyncState = new FBox3DAsyncState();
+	}
+
 	UWorld* World = GetWorld();
-	if (bTickFunctionsRegistered || World == nullptr || World->PersistentLevel == nullptr)
+	if (AsyncState->bTickFunctionsRegistered || World == nullptr || World->PersistentLevel == nullptr)
 	{
 		return;
 	}
 
-	KickTick.Subsystem = this;
-	KickTick.bCanEverTick = true;
-	KickTick.bStartWithTickEnabled = true;
-	KickTick.TickGroup = TG_PrePhysics;
-	KickTick.EndTickGroup = TG_PrePhysics;
-	KickTick.bHighPriority = true;
-	KickTick.RegisterTickFunction(World->PersistentLevel);
+	AsyncState->KickTick.Subsystem = this;
+	AsyncState->KickTick.bCanEverTick = true;
+	AsyncState->KickTick.bStartWithTickEnabled = true;
+	AsyncState->KickTick.TickGroup = TG_PrePhysics;
+	AsyncState->KickTick.EndTickGroup = TG_PrePhysics;
+	AsyncState->KickTick.bHighPriority = true;
+	AsyncState->KickTick.RegisterTickFunction(World->PersistentLevel);
 
-	JoinTick.Subsystem = this;
-	JoinTick.bCanEverTick = true;
-	JoinTick.bStartWithTickEnabled = true;
-	JoinTick.TickGroup = TG_PostPhysics;
-	JoinTick.EndTickGroup = TG_PostPhysics;
-	JoinTick.RegisterTickFunction(World->PersistentLevel);
+	AsyncState->JoinTick.Subsystem = this;
+	AsyncState->JoinTick.bCanEverTick = true;
+	AsyncState->JoinTick.bStartWithTickEnabled = true;
+	AsyncState->JoinTick.TickGroup = TG_PostPhysics;
+	AsyncState->JoinTick.EndTickGroup = TG_PostPhysics;
+	AsyncState->JoinTick.RegisterTickFunction(World->PersistentLevel);
 
-	JoinTick.AddPrerequisite(this, KickTick);
+	AsyncState->JoinTick.AddPrerequisite(this, AsyncState->KickTick);
 
-	bTickFunctionsRegistered = true;
+	AsyncState->bTickFunctionsRegistered = true;
 }
 
 void UBox3DSubsystem::UnregisterStepTickFunctions()
 {
-	if (!bTickFunctionsRegistered)
+	if (AsyncState == nullptr || !AsyncState->bTickFunctionsRegistered)
 	{
 		return;
 	}
 
 	FlushAsyncStep();
 
-	JoinTick.RemovePrerequisite(this, KickTick);
-	KickTick.UnRegisterTickFunction();
-	JoinTick.UnRegisterTickFunction();
-	KickTick.Subsystem = nullptr;
-	JoinTick.Subsystem = nullptr;
-	bTickFunctionsRegistered = false;
+	AsyncState->JoinTick.RemovePrerequisite(this, AsyncState->KickTick);
+	AsyncState->KickTick.UnRegisterTickFunction();
+	AsyncState->JoinTick.UnRegisterTickFunction();
+	AsyncState->KickTick.Subsystem = nullptr;
+	AsyncState->JoinTick.Subsystem = nullptr;
+	AsyncState->bTickFunctionsRegistered = false;
 }
 
 void UBox3DSubsystem::KickAsyncStep(float DeltaTime)
@@ -165,18 +171,18 @@ void UBox3DSubsystem::KickAsyncStep(float DeltaTime)
 
 	if (Accumulator < FixedTimeStep)
 	{
-		AsyncStepCount = 0;
+		AsyncState->StepCount = 0;
 		return; // not enough time banked for a step this frame
 	}
 
-	AsyncStepCount = 1;
+	AsyncState->StepCount = 1;
 
 	TArray<FKinematicTarget> Targets;
 	GatherKinematicTargets(Targets);
 
 	AsyncFrame = FBox3DFrameProfile();
 
-	StepTask = UE::Tasks::Launch(UE_SOURCE_LOCATION,
+	AsyncState->StepTask = UE::Tasks::Launch(UE_SOURCE_LOCATION,
 		[this, Targets = MoveTemp(Targets)]()
 		{
 			ApplyKinematicTargets(Targets, FixedTimeStep);
@@ -193,13 +199,13 @@ void UBox3DSubsystem::JoinAsyncStep()
 
 	FlushAsyncStep();
 
-	if (AsyncStepCount == 0)
+	if (AsyncState == nullptr || AsyncState->StepCount == 0)
 	{
 		return;
 	}
 
 	// Catch-up steps run inline, one at a time, so each drain sees its own events.
-	AsyncStepCount = 0;
+	AsyncState->StepCount = 0;
 	FinishStepGameThread();
 
 	while (Accumulator >= FixedTimeStep)

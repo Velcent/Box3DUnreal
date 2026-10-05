@@ -8,7 +8,6 @@
 #include "Box3DQueryTypes.h"
 #include "HAL/IConsoleManager.h"
 #include "Subsystems/WorldSubsystem.h"
-#include "Tasks/Task.h"
 #include <box3d/box3d.h>
 #include "Box3DSubsystem.generated.h"
 
@@ -17,46 +16,9 @@ class UBox3DBodyComponent;
 class UBox3DCharacterComponent;
 class UBox3DCollisionData;
 class ULevel;
-
-class UBox3DSubsystem;
-
-/** Kicks the async step at TG_PrePhysics. */
-USTRUCT()
-struct FBox3DKickTickFunction : public FTickFunction
-{
-	GENERATED_BODY()
-
-	UBox3DSubsystem* Subsystem = nullptr;
-
-	BOX3DUNREAL_API virtual void ExecuteTick(float DeltaTime, ELevelTick TickType,
-		ENamedThreads::Type CurrentThread, const FGraphEventRef& CompletionEvent) override;
-	BOX3DUNREAL_API virtual FString DiagnosticMessage() override;
-};
-
-template<>
-struct TStructOpsTypeTraits<FBox3DKickTickFunction> : public TStructOpsTypeTraitsBase2<FBox3DKickTickFunction>
-{
-	enum { WithCopy = false };
-};
-
-/** Joins the async step at TG_PostPhysics, then does the UObject work. */
-USTRUCT()
-struct FBox3DJoinTickFunction : public FTickFunction
-{
-	GENERATED_BODY()
-
-	UBox3DSubsystem* Subsystem = nullptr;
-
-	BOX3DUNREAL_API virtual void ExecuteTick(float DeltaTime, ELevelTick TickType,
-		ENamedThreads::Type CurrentThread, const FGraphEventRef& CompletionEvent) override;
-	BOX3DUNREAL_API virtual FString DiagnosticMessage() override;
-};
-
-template<>
-struct TStructOpsTypeTraits<FBox3DJoinTickFunction> : public TStructOpsTypeTraitsBase2<FBox3DJoinTickFunction>
-{
-	enum { WithCopy = false };
-};
+struct FBox3DAsyncState;
+struct FBox3DKickTickFunction;
+struct FBox3DJoinTickFunction;
 
 /** What box3d's own renderer draws. Bitmask behind box3d.NativeDraw. */
 enum class EBox3DDrawFlag : int32
@@ -215,11 +177,6 @@ public:
 	/** Backed by box3d.AsyncStep; off steps inline from Tick. */
 	static bool IsAsyncStepEnabled();
 
-	void KickAsyncStep(float DeltaTime);
-	void JoinAsyncStep();
-
-	bool IsStepInFlight() const { return StepTask.IsValid(); }
-
 	/** Join the step task. Anything touching the box3d world must call this first. */
 	void FlushAsyncStep() const;
 
@@ -294,21 +251,20 @@ protected:
 	void WarnIfBakeStale(const UBox3DCollisionData* Data) const;
 
 private:
+	friend struct FBox3DAsyncState;
+	friend struct FBox3DKickTickFunction;
+	friend struct FBox3DJoinTickFunction;
+
 	b3WorldId WorldId = b3_nullWorldId;
 	bool bWorldValid = false;
 	bool bIsAuthority = false;
 
-	/** Mutable so the const FlushAsyncStep can clear it. */
-	mutable UE::Tasks::FTask StepTask;
-
 	/** Written by the task, read after the join - no lock needed. */
 	FBox3DFrameProfile AsyncFrame;
-	int32 AsyncStepCount = 0;
+	FBox3DAsyncState* AsyncState = nullptr;
 
-	FBox3DKickTickFunction KickTick;
-	FBox3DJoinTickFunction JoinTick;
-	bool bTickFunctionsRegistered = false;
-
+	void KickAsyncStep(float DeltaTime);
+	void JoinAsyncStep();
 	void RegisterStepTickFunctions();
 	void UnregisterStepTickFunctions();
 
