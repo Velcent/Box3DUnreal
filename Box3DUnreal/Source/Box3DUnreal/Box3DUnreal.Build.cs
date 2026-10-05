@@ -7,7 +7,7 @@ public class Box3DUnreal : ModuleRules
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
 		// Box3DLibrary is public because the runtime's public API exposes native Box3D types.
-		PublicDependencyModuleNames.AddRange(new[] { "Core", "Box3DLibrary" });
+		PublicDependencyModuleNames.AddRange(new[] { "Core", "DeveloperSettings", "Box3DLibrary" });
 
 		// Landscape collision is extracted through ULandscapeHeightfieldCollisionComponent.
 		PrivateDependencyModuleNames.AddRange(new[]

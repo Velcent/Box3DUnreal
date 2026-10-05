@@ -27,7 +27,7 @@
 		},
 		{
 			"Name": "Box3DUnrealDeveloper",
-			"Type": "Developer",
+			"Type": "DeveloperTool",
 			"LoadingPhase": "Default"
 		}
 	]

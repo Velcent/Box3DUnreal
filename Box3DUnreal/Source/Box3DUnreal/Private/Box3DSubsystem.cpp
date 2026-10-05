@@ -8,6 +8,7 @@
 #include "Box3DStaticGeometry.h"
 #include "Box3DStats.h"
 #include "Box3DLog.h"
+#include "Box3DSettings.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/Engine.h"
 #include "Engine/Level.h"
@@ -72,6 +73,14 @@ bool UBox3DSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) con
 void UBox3DSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
 	Super::OnWorldBeginPlay(InWorld);
+
+	const UBox3DSettings* Settings = GetDefault<UBox3DSettings>();
+	FixedTimeStep = FMath::Max(Settings->FixedTimeStep, UE_SMALL_NUMBER);
+	SubStepCount = FMath::Max(Settings->SolverSubSteps, 1);
+	MaxFrameTime = FMath::Max(Settings->MaxFrameTime, FixedTimeStep);
+	Gravity = Settings->Gravity;
+	WorkerCount = FMath::Max(Settings->WorkerCount, 1);
+	HitEventThreshold = FMath::Max(Settings->HitEventThreshold, 0.0f);
 
 	bIsAuthority = InWorld.GetNetMode() != NM_Client;
 
