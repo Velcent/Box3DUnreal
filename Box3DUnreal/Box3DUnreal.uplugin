@@ -24,6 +24,11 @@
 			"Name": "Box3DUnrealEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "Box3DUnrealDeveloper",
+			"Type": "Developer",
+			"LoadingPhase": "Default"
 		}
 	]
 }
